@@ -1,71 +1,81 @@
-let lastSpyedData = null;
+let lastData = null;
+let selectedSelector = { type: 'tagName', value: '' };
 
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.type === "ELEMENT_SPYED") {
-    lastSpyedData = message.data;
-    showSuggestions(lastSpyedData);
-  }
+chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === "ELEMENT_SPYED") {
+        lastData = msg.data;
+        renderSpyView();
+    }
 });
 
-function showSuggestions(data) {
-  const zone = document.getElementById('suggestionZone');
-  const btnContainer = document.getElementById('actionButtons');
-  const tagDisplay = document.getElementById('detectedTag');
+function renderSpyView() {
+    const zone = document.getElementById('suggestionZone');
+    const selList = document.getElementById('selectorList');
+    const actList = document.getElementById('actionButtons');
+    
+    zone.style.display = 'block';
+    selList.innerHTML = '';
+    actList.innerHTML = '';
+    document.getElementById('textInputArea').style.display = 'none';
 
-  // 1. Show the zone and the tag name
-  zone.style.display = 'block';
-  tagDisplay.innerText = `<${data.tagName}>`;
-  btnContainer.innerHTML = ''; // Clear old buttons
+    // Option B: Rank and show selectors
+    const types = ['id', 'name', 'className', 'css', 'xpath'];
+    types.forEach(type => {
+        if (lastData[type]) {
+            const chip = document.createElement('div');
+            chip.className = 'selector-chip';
+            chip.innerText = `${type.toUpperCase()}: ${lastData[type]}`;
+            chip.onclick = () => {
+                document.querySelectorAll('.selector-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                selectedSelector = { type, value: lastData[type] };
+            };
+            selList.appendChild(chip);
+            // Default to first available
+            if (!selectedSelector.value) chip.click();
+        }
+    });
 
-  // 2. Define actions based on type
-  let actions = ["isPresent", "isVisible"]; // Default actions for everything
-  
-  if (data.tagName === "input" || data.tagName === "textarea") {
-    actions.unshift("sendKeys", "click", "clear");
-  } else if (data.tagName === "button" || data.tagName === "a") {
-    actions.unshift("click");
-  } else {
-    actions.unshift("click");
-  }
-
-  // 3. Create buttons for each action
-  actions.forEach(action => {
-    const btn = document.createElement('button');
-    btn.className = 'action-btn';
-    btn.innerText = `Want to ${action}?`;
-    btn.onclick = () => generateCode(action);
-    btnContainer.appendChild(btn);
-  });
+    // Suggest actions
+    const actions = (lastData.tagName === 'input') ? ['sendKeys', 'click', 'isPresent'] : ['click', 'isPresent'];
+    actions.forEach(action => {
+        const btn = document.createElement('button');
+        btn.className = 'action-btn';
+        btn.innerText = action.toUpperCase();
+        btn.onclick = () => {
+            if (action === 'sendKeys') {
+                document.getElementById('textInputArea').style.display = 'block';
+            } else {
+                generate(action);
+            }
+        };
+        actList.appendChild(btn);
+    });
 }
 
-function generateCode(action) {
-  const engine = document.getElementById('engine').value;
-  const selectorType = document.getElementById('selectorType').value;
-  const output = document.getElementById('testOutput');
+function generate(action, val = "Text") {
+    const engine = document.getElementById('engine').value;
+    const output = document.getElementById('testOutput');
+    let code = "";
 
-  const selectorValue = lastSpyedData[selectorType] || lastSpyedData.tagName;
-  let code = "";
+    if (engine === "selenium_java") {
+        const by = `By.${selectedSelector.type === 'className' ? 'className' : selectedSelector.type}("${selectedSelector.value}")`;
+        if (action === 'sendKeys') code = `driver.findElement(${by}).sendKeys("${val}");\n`;
+        else if (action === 'click') code = `driver.findElement(${by}).click();\n`;
+        else code = `driver.findElement(${by}).isDisplayed();\n`;
+    } else {
+        const sel = selectedSelector.type === 'id' ? `#${selectedSelector.value}` : selectedSelector.value;
+        if (action === 'sendKeys') code = `await page.locator('${sel}').fill('${val}');\n`;
+        else code = `await page.locator('${sel}').click();\n`;
+    }
 
-  if (engine === "selenium_java") {
-    const by = `By.${selectorType}("${selectorValue}")`;
-    if (action === "sendKeys") code = `driver.findElement(${by}).sendKeys("Text");\n`;
-    else if (action === "click") code = `driver.findElement(${by}).click();\n`;
-    else if (action === "isPresent") code = `driver.findElements(${by}).size() > 0;\n`;
-    else code = `driver.findElement(${by}).${action}();\n`;
-  } 
-  
-  else if (engine === "playwright_js") {
-    const sel = selectorType === 'id' ? `#${selectorValue}` : selectorValue;
-    if (action === "sendKeys") code = `await page.locator('${sel}').fill('Text');\n`;
-    else if (action === "click") code = `await page.locator('${sel}').click();\n`;
-    else code = `await expect(page.locator('${sel}')).toBeVisible();\n`;
-  }
-
-  output.value += code;
-  // Hide suggestions after choice
-  document.getElementById('suggestionZone').style.display = 'none';
+    output.value += code;
+    document.getElementById('suggestionZone').style.display = 'none';
 }
 
-document.getElementById('clearBtn').onclick = () => {
-  document.getElementById('testOutput').value = "";
+document.getElementById('confirmTextBtn').onclick = () => {
+    const val = document.getElementById('customText').value || "Your Text";
+    generate('sendKeys', val);
 };
+
+document.getElementById('clearBtn').onclick = () => document.getElementById('testOutput').value = "";

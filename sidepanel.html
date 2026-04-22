@@ -1,54 +1,52 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Automation Builder</title>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 15px; background: #1e1e1e; color: #d4d4d4; }
-    h2 { color: #569cd6; font-size: 18px; border-bottom: 1px solid #333; padding-bottom: 10px; }
-    .section { margin-bottom: 15px; }
-    label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; text-transform: uppercase; }
-    select, button, textarea { width: 100%; padding: 8px; border-radius: 4px; background: #2d2d2d; color: #fff; border: 1px solid #3c3c3c; box-sizing: border-box; }
-    textarea { height: 200px; font-family: 'Consolas', monospace; font-size: 12px; margin-top: 10px; color: #ce9178; }
+    body { font-family: 'Segoe UI', sans-serif; padding: 15px; background: #1e1e1e; color: #d4d4d4; }
+    h2 { color: #569cd6; font-size: 1.1em; border-bottom: 1px solid #333; padding-bottom: 8px; }
+    .section { margin-bottom: 12px; }
+    label { display: block; font-size: 10px; color: #888; margin-bottom: 4px; text-transform: uppercase; }
+    select, button, textarea, input { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #3c3c3c; background: #2d2d2d; color: white; box-sizing: border-box; }
+    textarea { height: 150px; font-family: monospace; color: #ce9178; font-size: 11px; }
     
-    /* Smart Action Styles */
-    #suggestionZone { background: #252526; padding: 10px; border-radius: 4px; border-left: 4px solid #0e639c; display: none; margin-bottom: 10px; }
-    .action-btn { background: #3a3a3a; margin: 4px 0; font-size: 12px; text-align: left; transition: 0.2s; }
-    .action-btn:hover { background: #4a4a4a; border-color: #0e639c; }
-    .detected-tag { color: #4ec9b0; font-weight: bold; }
-
-    button#clearBtn { background: #a1260d; border: none; cursor: pointer; margin-top: 10px; }
-    button#clearBtn:hover { background: #cf3521; }
+    #suggestionZone { background: #252526; padding: 12px; border-radius: 4px; border-left: 4px solid #569cd6; display: none; margin-bottom: 10px; }
+    .selector-chip { background: #333; padding: 5px; margin: 3px 0; font-size: 11px; cursor: pointer; border: 1px solid transparent; border-radius: 3px; display: block; text-align: left; }
+    .selector-chip:hover { border-color: #569cd6; }
+    .selector-chip.active { background: #0e639c; border-color: #569cd6; }
+    
+    .action-btn { background: #444; margin-top: 5px; font-weight: bold; border: none; cursor: pointer; }
+    .action-btn:hover { background: #555; }
+    #textInputArea { display: none; margin-top: 10px; border-top: 1px solid #444; pt: 10px; }
   </style>
 </head>
 <body>
-  <h2>Test Case Builder</h2>
+  <h2>Pro Automation Spy</h2>
   
   <div class="section">
-    <label>Automation Engine</label>
+    <label>Engine</label>
     <select id="engine">
       <option value="selenium_java">Selenium (Java)</option>
       <option value="playwright_js">Playwright (JS)</option>
     </select>
   </div>
 
-  <div class="section">
-    <label>Preferred Selector</label>
-    <select id="selectorType">
-      <option value="id">ID</option>
-      <option value="name">Name</option>
-      <option value="tagName">Tag Name</option>
-    </select>
-  </div>
-
   <div id="suggestionZone">
-    <label>Detected Element: <span id="detectedTag" class="detected-tag"></span></label>
+    <label>1. Pick Best Selector</label>
+    <div id="selectorList"></div>
+
+    <label style="margin-top:10px;">2. Choose Action</label>
     <div id="actionButtons"></div>
+
+    <div id="textInputArea">
+      <label>Enter Value</label>
+      <input type="text" id="customText" placeholder="e.g. admin@test.com">
+      <button class="action-btn" id="confirmTextBtn" style="background:#0e639c">Generate with Text</button>
+    </div>
   </div>
 
-  <label>Generated Script</label>
-  <textarea id="testOutput" placeholder="// Alt+Click on elements to see suggestions..."></textarea>
-  
-  <button id="clearBtn">Clear Script</button>
+  <label>Script Output</label>
+  <textarea id="testOutput"></textarea>
+  <button id="clearBtn" style="background:#a1260d; border:none; margin-top:5px; cursor:pointer;">Clear All</button>
 
   <script src="sidepanel.js"></script>
 </body>
