@@ -1,29 +1,35 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thor's Automation Spy</title>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; padding: 15px; background: #1e1e1e; color: #d4d4d4; }
-    h2 { color: #569cd6; font-size: 1.1em; border-bottom: 1px solid #333; padding-bottom: 8px; }
-    .section { margin-bottom: 12px; }
-    label { display: block; font-size: 10px; color: #888; margin-bottom: 4px; text-transform: uppercase; }
-    select, button, textarea, input { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #3c3c3c; background: #2d2d2d; color: white; box-sizing: border-box; }
-    textarea { height: 150px; font-family: monospace; color: #ce9178; font-size: 11px; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 15px; background: #1e1e1e; color: #d4d4d4; margin: 0; }
+    h2 { color: #569cd6; font-size: 1.1em; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 15px; }
+    .section { margin-bottom: 15px; }
+    label { display: block; font-size: 10px; color: #888; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, button, textarea, input { width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #3c3c3c; background: #2d2d2d; color: white; box-sizing: border-box; font-size: 13px; }
     
-    #suggestionZone { background: #252526; padding: 12px; border-radius: 4px; border-left: 4px solid #569cd6; display: none; margin-bottom: 10px; }
-    .selector-chip { background: #333; padding: 5px; margin: 3px 0; font-size: 11px; cursor: pointer; border: 1px solid transparent; border-radius: 3px; display: block; text-align: left; }
-    .selector-chip:hover { border-color: #569cd6; }
-    .selector-chip.active { background: #0e639c; border-color: #569cd6; }
+    #suggestionZone { background: #252526; padding: 12px; border-radius: 4px; border-left: 4px solid #569cd6; display: none; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+    .action-btn { background: #3e3e42; margin-top: 8px; font-weight: 500; border: 1px solid #454545; cursor: pointer; text-align: left; transition: background 0.2s; }
+    .action-btn:hover { background: #4e4e52; border-color: #569cd6; }
     
-    .action-btn { background: #444; margin-top: 5px; font-weight: bold; border: none; cursor: pointer; }
-    .action-btn:hover { background: #555; }
-    #textInputArea { display: none; margin-top: 10px; border-top: 1px solid #444; pt: 10px; }
+    textarea { height: 200px; font-family: 'Consolas', 'Courier New', monospace; color: #ce9178; font-size: 12px; margin-top: 10px; line-height: 1.5; resize: vertical; }
+    #clearBtn { background: #a1260d; border: none; margin-top: 10px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+    
+    #settingsToggle { font-size: 11px; color: #569cd6; cursor: pointer; margin-top: 30px; display: block; text-align: center; text-decoration: underline; }
+    #settingsArea { display: none; border-top: 1px solid #333; padding-top: 15px; margin-top: 10px; }
+    #saveKeyBtn { background: #0e639c; border: none; margin-top: 10px; cursor: pointer; }
+    
+    .error-box { color: #f44747; background: rgba(244, 71, 71, 0.1); padding: 10px; border-radius: 4px; font-size: 11px; margin-top: 10px; border: 1px solid #f44747; line-height: 1.4; }
   </style>
 </head>
 <body>
   <h2>Pro Automation Spy</h2>
   
   <div class="section">
-    <label>Engine</label>
+    <label>Automation Engine</label>
     <select id="engine">
       <option value="selenium_java">Selenium (Java)</option>
       <option value="playwright_js">Playwright (JS)</option>
@@ -31,22 +37,22 @@
   </div>
 
   <div id="suggestionZone">
-    <label>1. Pick Best Selector</label>
-    <div id="selectorList"></div>
-
-    <label style="margin-top:10px;">2. Choose Action</label>
+    <label id="spyStatus">Gemini is analyzing...</label>
     <div id="actionButtons"></div>
-
-    <div id="textInputArea">
-      <label>Enter Value</label>
-      <input type="text" id="customText" placeholder="e.g. admin@test.com">
-      <button class="action-btn" id="confirmTextBtn" style="background:#0e639c">Generate with Text</button>
-    </div>
   </div>
 
-  <label>Script Output</label>
-  <textarea id="testOutput"></textarea>
-  <button id="clearBtn" style="background:#a1260d; border:none; margin-top:5px; cursor:pointer;">Clear All</button>
+  <div class="section">
+    <label>Generated Script</label>
+    <textarea id="testOutput" placeholder="// Alt+Click a website element to generate code..."></textarea>
+    <button id="clearBtn">Clear All</button>
+  </div>
+
+  <span id="settingsToggle">Settings & API Key</span>
+  <div id="settingsArea">
+    <label>Gemini API Key</label>
+    <input type="password" id="apiKeyInput" placeholder="Paste your API key here...">
+    <button id="saveKeyBtn">Save Key Locally</button>
+  </div>
 
   <script src="sidepanel.js"></script>
 </body>

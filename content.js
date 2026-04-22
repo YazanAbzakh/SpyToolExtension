@@ -1,10 +1,8 @@
 console.log("Thor's Pro Spy Tool Active.");
 
-// Helper to generate a basic XPath
 function getElementXPath(element) {
-    if (element.id !== '') return `//*[@id="${element.id}"]`;
+    if (element.id && element.id !== '') return `//*[@id="${element.id}"]`;
     if (element === document.body) return '/html/body';
-
     let ix = 0;
     let siblings = element.parentNode.childNodes;
     for (let i = 0; i < siblings.length; i++) {
@@ -20,7 +18,6 @@ document.addEventListener('click', (e) => {
         e.stopPropagation();
 
         const el = e.target;
-        
         const data = {
             tagName: el.tagName.toLowerCase(),
             id: el.id || null,
@@ -30,7 +27,15 @@ document.addEventListener('click', (e) => {
             css: `${el.tagName.toLowerCase()}${el.className ? '.' + el.className.replace(/\s+/g, '.') : ''}`
         };
 
-        chrome.runtime.sendMessage({ type: "ELEMENT_SPYED", data: data });
+        if (chrome.runtime && chrome.runtime.id) {
+            chrome.runtime.sendMessage({ type: "ELEMENT_SPYED", data: data }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.debug("Spy Tool: Sidepanel is not listening.");
+                }
+            });
+        } else {
+            console.error("Spy Tool: Connection lost. Please refresh the page.");
+        }
 
         const original = el.style.outline;
         el.style.outline = "3px dashed #ff9900";

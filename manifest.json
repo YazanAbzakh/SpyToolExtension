@@ -1,11 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "Thor's Automation Spy",
-  "version": "1.0",
+  "name": "Thor's Automation Spy Pro",
+  "version": "2.0",
+  "description": "AI-powered element spy and code generator for Selenium and Playwright.",
   "permissions": [
     "sidePanel",
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*"
   ],
   "background": {
     "service_worker": "background.js"

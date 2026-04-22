@@ -1,81 +1,150 @@
-let lastData = null;
-let selectedSelector = { type: 'tagName', value: '' };
+/**
+ * Thor's Automation Spy - Pro Edition
+ * UNIVERSAL MODEL DISCOVERY + AUTO-RETRY LOGIC
+ * This version handles "High Demand" errors by automatically retrying.
+ */
 
-chrome.runtime.onMessage.addListener((msg) => {
+let lastData = null;
+let discoveredModel = null; 
+
+// --- 1. Settings & Key Management ---
+
+document.getElementById('settingsToggle').onclick = () => {
+    const area = document.getElementById('settingsArea');
+    area.style.display = (area.style.display === 'block') ? 'none' : 'block';
+};
+
+document.getElementById('saveKeyBtn').onclick = () => {
+    const keyInput = document.getElementById('apiKeyInput');
+    const key = keyInput.value.trim();
+    if (key) {
+        chrome.storage.local.set({ gemini_api_key: key }, () => {
+            alert("API Key saved! Discovery will begin on next spy.");
+            discoveredModel = null; 
+            keyInput.value = "";
+            document.getElementById('settingsArea').style.display = 'none';
+        });
+    }
+};
+
+// --- 2. Message Listener ---
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === "ELEMENT_SPYED") {
         lastData = msg.data;
-        renderSpyView();
+        renderAIView().then(() => {
+            sendResponse({ status: "success" });
+        }).catch(err => {
+            console.error("Communication Failure:", err);
+            sendResponse({ status: "error", error: err.message });
+        });
+        return true; 
     }
 });
 
-function renderSpyView() {
-    const zone = document.getElementById('suggestionZone');
-    const selList = document.getElementById('selectorList');
-    const actList = document.getElementById('actionButtons');
-    
-    zone.style.display = 'block';
-    selList.innerHTML = '';
-    actList.innerHTML = '';
-    document.getElementById('textInputArea').style.display = 'none';
+// --- 3. Model Discovery & AI Logic ---
 
-    // Option B: Rank and show selectors
-    const types = ['id', 'name', 'className', 'css', 'xpath'];
-    types.forEach(type => {
-        if (lastData[type]) {
-            const chip = document.createElement('div');
-            chip.className = 'selector-chip';
-            chip.innerText = `${type.toUpperCase()}: ${lastData[type]}`;
-            chip.onclick = () => {
-                document.querySelectorAll('.selector-chip').forEach(c => c.classList.remove('active'));
-                chip.classList.add('active');
-                selectedSelector = { type, value: lastData[type] };
-            };
-            selList.appendChild(chip);
-            // Default to first available
-            if (!selectedSelector.value) chip.click();
-        }
-    });
+async function getWorkingModel(apiKey) {
+    if (discoveredModel) return discoveredModel;
 
-    // Suggest actions
-    const actions = (lastData.tagName === 'input') ? ['sendKeys', 'click', 'isPresent'] : ['click', 'isPresent'];
-    actions.forEach(action => {
-        const btn = document.createElement('button');
-        btn.className = 'action-btn';
-        btn.innerText = action.toUpperCase();
-        btn.onclick = () => {
-            if (action === 'sendKeys') {
-                document.getElementById('textInputArea').style.display = 'block';
-            } else {
-                generate(action);
-            }
-        };
-        actList.appendChild(btn);
-    });
+    console.log("Discovering available models...");
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const data = await response.json();
+
+    if (data.error) throw new Error(`Discovery Failed: ${data.error.message}`);
+
+    const bestModel = data.models.find(m => 
+        m.supportedGenerationMethods.includes("generateContent") && 
+        (m.name.includes("gemini-1.5-flash") || m.name.includes("gemini-1.5-pro"))
+    ) || data.models.find(m => m.supportedGenerationMethods.includes("generateContent"));
+
+    if (!bestModel) throw new Error("No compatible Gemini models found.");
+
+    discoveredModel = bestModel.name;
+    return discoveredModel;
 }
 
-function generate(action, val = "Text") {
+async function renderAIView() {
+    const zone = document.getElementById('suggestionZone');
+    const actList = document.getElementById('actionButtons');
+    const status = document.getElementById('spyStatus');
     const engine = document.getElementById('engine').value;
-    const output = document.getElementById('testOutput');
-    let code = "";
 
-    if (engine === "selenium_java") {
-        const by = `By.${selectedSelector.type === 'className' ? 'className' : selectedSelector.type}("${selectedSelector.value}")`;
-        if (action === 'sendKeys') code = `driver.findElement(${by}).sendKeys("${val}");\n`;
-        else if (action === 'click') code = `driver.findElement(${by}).click();\n`;
-        else code = `driver.findElement(${by}).isDisplayed();\n`;
-    } else {
-        const sel = selectedSelector.type === 'id' ? `#${selectedSelector.value}` : selectedSelector.value;
-        if (action === 'sendKeys') code = `await page.locator('${sel}').fill('${val}');\n`;
-        else code = `await page.locator('${sel}').click();\n`;
+    zone.style.display = 'block';
+    actList.innerHTML = '';
+    status.innerText = "Connecting to Google AI...";
+
+    const storage = await chrome.storage.local.get(['gemini_api_key']);
+    const apiKey = storage.gemini_api_key;
+
+    if (!apiKey) {
+        status.innerHTML = `<div style="color:#f44747; padding:10px;">Error: No API Key. Go to Settings.</div>`;
+        return;
     }
 
-    output.value += code;
-    document.getElementById('suggestionZone').style.display = 'none';
+    try {
+        const modelPath = await getWorkingModel(apiKey);
+        const prompt = `You are a Test Automation Architect. 
+        Tool: ${engine}
+        Element: ${JSON.stringify(lastData)}
+        Return ONLY a JSON array of 5 testing actions with "label" and "code" keys.`;
+
+        let attempts = 0;
+        const maxAttempts = 3;
+        let success = false;
+
+        while (attempts < maxAttempts && !success) {
+            attempts++;
+            status.innerText = attempts > 1 ? `High demand. Retry #${attempts-1}...` : `Analyzing with AI...`;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            const result = await response.json();
+
+            if (result.error) {
+                // Check if it's a "High Demand" / 503 / 429 error
+                if (result.error.message.includes("high demand") || result.error.code === 429 || result.error.code === 503) {
+                    if (attempts < maxAttempts) {
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+                        continue;
+                    }
+                }
+                throw new Error(result.error.message);
+            }
+
+            if (result.candidates && result.candidates.length > 0) {
+                let rawText = result.candidates[0].content.parts[0].text;
+                rawText = rawText.replace(/```json|```/g, "").trim();
+                const suggestions = JSON.parse(rawText);
+
+                status.innerText = `Actions for <${lastData.tagName}>:`;
+                suggestions.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = 'action-btn';
+                    btn.innerText = `✨ ${item.label}`;
+                    btn.onclick = () => {
+                        const output = document.getElementById('testOutput');
+                        output.value += `${item.code}\n`;
+                        output.scrollTop = output.scrollHeight;
+                        zone.style.display = 'none'; 
+                    };
+                    actList.appendChild(btn);
+                });
+                success = true;
+            }
+        }
+    } catch (err) {
+        console.error("Final Logic Failure:", err);
+        status.innerHTML = `<div style="color:#f44747; border:1px solid #f44747; padding:10px;">AI ERROR: ${err.message}</div>`;
+    }
 }
 
-document.getElementById('confirmTextBtn').onclick = () => {
-    const val = document.getElementById('customText').value || "Your Text";
-    generate('sendKeys', val);
-};
+// --- 4. Utilities ---
 
-document.getElementById('clearBtn').onclick = () => document.getElementById('testOutput').value = "";
+document.getElementById('clearBtn').onclick = () => {
+    document.getElementById('testOutput').value = "";
+};
